@@ -61,9 +61,22 @@ end
 require 'json'
 
 config = node['logstash_forwarder']['config'].to_hash
-config['files'] = []
-node['logstash_forwarder']['config']['files'].each_pair do |name,value|
-  config['files'] << { 'paths' => value['paths'].map { |k,v| k if v }, 'fields' => value['fields'] }
+
+if node.logstash_forwarder.certificate
+  crt_path = '/etc/pki/tls/certs/logstash-forwarder.crt'
+  config['network']['ssl ca'] = crt_path
+
+  directory File.dirname(crt_path) do
+    recursive true
+  end
+
+  file crt_path do
+    owner node['logstash_forwarder']['user']
+    group node['logstash_forwarder']['group']
+    mode 0644
+    content node.logstash_forwarder.certificate
+    notifies :restart, 'service[logstash-forwarder]'
+  end
 end
 
 file node['logstash_forwarder']['config_file'] do
